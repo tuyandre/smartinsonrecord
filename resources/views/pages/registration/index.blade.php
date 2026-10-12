@@ -9,7 +9,7 @@
 @endsection
 
 @push('head')
-<script src="{{ asset('js/rwanda.js') }}"></script>
+<script src="{{ asset('js/rwanda-address.js') }}"></script>
 <style>
     .reg-table th { white-space: nowrap; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
     .reg-table td { white-space: nowrap; vertical-align: middle; }
@@ -210,46 +210,8 @@
       <div class="card h-100">
         <div class="card-body">
           <div class="reg-card-title"><i class="bi bi-geo-alt"></i> Location</div>
-          <p class="text-muted small">District, sector, cell and village.</p>
-          <div class="row g-3">
-            <div class="col-12 col-md-6">
-              <label for="floatingSelectDistrict" class="form-label">District</label>
-              <select class="form-select {{ $fieldError('district') }}" name="district" onchange="showSectors(this.value)" id="floatingSelectDistrict">
-                <option value="--" class="text-danger">---Choose District---</option>
-                @foreach ($districts as $district)
-                  <option value="{{ $district }}" @selected(old('district') === $district)>{{ $district }}</option>
-                @endforeach
-              </select>
-              @error('district') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <label for="sectorsSelection" class="form-label">Sector</label>
-              <select class="form-select {{ $fieldError('sector') }}" name="sector" id="sectorsSelection" onchange="showCells(this.value)">
-                <option value="--" class="text-danger">---Choose Sector---</option>
-              </select>
-              @error('sector') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <label for="cellsSelection" class="form-label">Cell</label>
-              <select class="form-select {{ $fieldError('cell') }}" name="cell" id="cellsSelection">
-                <option value="--" class="text-danger">---Choose Cell---</option>
-              </select>
-              @error('cell') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <label for="villagesSelection" class="form-label">Village</label>
-              <select class="form-select {{ $fieldError('village') }}" name="village" id="villagesSelection">
-                <option value="--" class="text-danger">---Choose Village---</option>
-                <option value="Rusizi">Mukura</option>
-                <option value="Rutsiro">Rukungere</option>
-                <option value="Rwamagana">Mpare</option>
-                <option value="Rusizi">Rugango</option>
-                <option value="Rutsiro">Gitaba</option>
-                <option value="Rwamagana">Mugunga</option>
-              </select>
-              @error('village') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-          </div>
+          <p class="text-muted small">Province, district, sector, cell and village.</p>
+          @include('partials.location-fields', ['id' => 'createLocation', 'prefix' => 'loc_'])
         </div>
       </div>
     </div>
@@ -352,7 +314,7 @@
               ['name', 'Name'], ['gender', 'Gender'], ['breed', 'Breed'], ['cross_breed1', 'Cross Breed 1'],
               ['cross_breed2', 'Cross Breed 2'], ['breed_percentage', 'Breed Percentage'], ['dob', 'DOB'],
               ['number_calving', 'Number of Calving'], ['owner_names', 'Owner Names'], ['national_id', 'National ID'],
-              ['phone', 'Phone'], ['district', 'District'], ['sector', 'Sector'], ['cell', 'Cell'], ['village', 'Village'],
+              ['phone', 'Phone'],
             ] as [$field, $label])
               <div class="col-12 col-md-6">
                 <label for="edit_{{ $field }}" class="form-label">{{ $label }}</label>
@@ -360,6 +322,9 @@
               </div>
             @endforeach
           </div>
+          <hr>
+          <div class="fw-semibold mb-2"><i class="bi bi-geo-alt me-1"></i> Location</div>
+          @include('partials.location-fields', ['id' => 'editLocation', 'prefix' => 'edit_', 'errors' => new \Illuminate\Support\ViewErrorBag])
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -492,17 +457,10 @@
     });
     toggleBreed();
 
-    var oldDistrict = @json(old('district'));
-    if (oldDistrict && oldDistrict !== '--') {
-      showSectors(oldDistrict);
-      var oldSector = @json(old('sector'));
-      if (oldSector) { $('#sectorsSelection').val(oldSector); showCells(oldSector); }
-      var oldCell = @json(old('cell'));
-      if (oldCell) { $('#cellsSelection').val(oldCell); }
-      var oldVillage = @json(old('village'));
-      if (oldVillage) { $('#villagesSelection').val(oldVillage); }
-    }
-
+    RwandaAddress.attach(document.getElementById('createLocation'), {
+      district: @json(old('district')), sector: @json(old('sector')),
+      cell: @json(old('cell')), village: @json(old('village'))
+    });
     $(document).on('click', '.btn-edit-cow', function () {
       var eartagno = $(this).data('eartagno');
       postJson(@json(route('registration.details')), { eartagno: eartagno }).then(function (cow) {
@@ -510,10 +468,13 @@
         var map = {
           name: 'Name', gender: 'Gender', breed: 'Breed', cross_breed1: 'Cross_breed1', cross_breed2: 'Cross_breed2',
           breed_percentage: 'Breed_Percentage', dob: 'Dob', number_calving: 'Number_Calving', owner_names: 'Owner_names',
-          national_id: 'National_Id', phone: 'Phone', district: 'District', sector: 'Sector', cell: 'Cell', village: 'Village'
+          national_id: 'National_Id', phone: 'Phone'
         };
         $('#eartagno').val(cow.Eartagno);
         Object.keys(map).forEach(function (field) { $('#edit_' + field).val(cow[map[field]]); });
+        RwandaAddress.attach(document.getElementById('editLocation'), {
+          district: cow.District, sector: cow.Sector, cell: cow.Cell, village: cow.Village
+        });
         $('#editForm').attr('action', @json(url('registration')) + '/' + cow.Eartagno);
         bootstrap.Modal.getOrCreateInstance(document.getElementById('editModal')).show();
       });

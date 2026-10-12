@@ -59,7 +59,9 @@
             </p>
             <div class="d-flex flex-column flex-md-row" data-aos="fade-up" data-aos-delay="200">
               <a href="{{ route('login') }}" class="btn-get-started">Login <i class="bi bi-arrow-right mr-3"></i></a>
-              <a href="{{ route('sign-up') }}" class="btn-get-started d-flex align-items-center justify-content-center ms-0 ms-md-4 mt-4 mt-md-0"><i class="bi bi-person-plus me-2"></i>Create an Account </a>
+              @if (Route::has('sign-up'))
+                <a href="{{ route('sign-up') }}" class="btn-get-started d-flex align-items-center justify-content-center ms-0 ms-md-4 mt-4 mt-md-0"><i class="bi bi-person-plus me-2"></i>Create an Account </a>
+              @endif
               <!--glightbox-->
             </div>
           </div>

@@ -12,6 +12,7 @@
  *   data-buttons="false"           hide the export / column buttons
  *   data-responsive="false"        never collapse columns (use for wide printable reports; wrap in .table-responsive)
  *   data-filters-target="#id"      element that should receive the filter bar (default: above the table)
+ *   data-letterhead="true"         add the logos + header lines from window.SIR_LETTERHEAD to the Excel and Print exports
  *
  * Header cell attributes (all optional):
  *   data-filter="select|text|date" adds a filter control for that column to the filter bar (date = global DD/MM/YYYY range picker)
@@ -70,6 +71,100 @@
       onChange('', '');
     });
   };
+
+  // ---- Letterhead (logos + header lines) for Excel and Print exports --------------------------------
+  // window.SIR_LETTERHEAD = { lines: ['Huye District', ...], logoLeft: url, logoRight: url }
+  var LOGO_HEIGHT = 56; // px, in the exported sheet
+  var logoCache = {};
+
+  function loadLogo(url) {
+    if (!url) { return Promise.resolve(null); }
+    if (!logoCache[url]) {
+      logoCache[url] = new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () {
+          // Downscale so a 1 MB logo does not bloat every workbook.
+          var scale = Math.min(1, (LOGO_HEIGHT * 2) / img.naturalHeight);
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve({ base64: c.toDataURL('image/png').split(',')[1], ratio: img.naturalWidth / img.naturalHeight });
+        };
+        img.onerror = function () { resolve(null); };
+        img.src = new URL(url, location.href).href;
+      });
+    }
+    return logoCache[url];
+  }
+
+  function letterheadHtml(cfg) {
+    var abs = function (u) { return u ? new URL(u, location.href).href : ''; };
+    var esc = function (t) { return $('<div>').text(t).html(); };
+    var img = function (u, h) { return u ? '<img src="' + abs(u) + '" style="height:' + h + 'px;width:auto">' : '<span></span>'; };
+    return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+      img(cfg.logoLeft, 56) +
+      '<div style="text-align:center;font-weight:600;line-height:1.4">' + (cfg.lines || []).map(esc).join('<br>') + '</div>' +
+      img(cfg.logoRight, 56) + '</div>';
+  }
+
+  var MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  var REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  function pictureXml(rId, id, col, logo) {
+    var cy = LOGO_HEIGHT * 9525, cx = Math.round(LOGO_HEIGHT * logo.ratio) * 9525;
+    return '<xdr:oneCellAnchor><xdr:from><xdr:col>' + col + '</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>38100</xdr:rowOff></xdr:from>' +
+      '<xdr:ext cx="' + cx + '" cy="' + cy + '"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="' + id + '" name="Logo ' + id + '"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
+      '<xdr:blipFill><a:blip r:embed="' + rId + '"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
+      '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>';
+  }
+
+  /** Excel: first row tall enough for the logos, logos drawn at the left and right ends of it. */
+  function excelLetterhead(logos, colCount) {
+    var pics = [];
+    if (logos.left) { pics.push({ logo: logos.left, col: 0 }); }
+    if (logos.right) { pics.push({ logo: logos.right, col: Math.max(colCount - 1, 1) }); }
+
+    return {
+      customize: function (xlsx) {
+        if (!pics.length) { return; }
+        var sheet = xlsx.xl.worksheets['sheet1.xml'];
+        var row1 = sheet.getElementsByTagName('row')[0];
+        if (row1) { row1.setAttribute('ht', String(LOGO_HEIGHT * 0.75 + 8)); row1.setAttribute('customHeight', '1'); }
+
+        var drawing = sheet.createElementNS(MAIN_NS, 'drawing');
+        drawing.setAttributeNS(REL_NS, 'r:id', 'rId1');
+        sheet.documentElement.appendChild(drawing);
+
+        var types = xlsx['[Content_Types].xml'];
+        var root = types.documentElement;
+        var hasPng = Array.prototype.some.call(root.getElementsByTagName('Default'), function (d) { return d.getAttribute('Extension') === 'png'; });
+        if (!hasPng) {
+          var def = types.createElementNS(root.namespaceURI, 'Default');
+          def.setAttribute('Extension', 'png'); def.setAttribute('ContentType', 'image/png');
+          root.appendChild(def);
+        }
+        var ov = types.createElementNS(root.namespaceURI, 'Override');
+        ov.setAttribute('PartName', '/xl/drawings/drawing1.xml');
+        ov.setAttribute('ContentType', 'application/vnd.openxmlformats-officedocument.drawing+xml');
+        root.appendChild(ov);
+      },
+      customizeZip: function (zip) {
+        if (!pics.length) { return; }
+        var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+        var drawing = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="' + REL_NS + '">';
+        pics.forEach(function (p, i) {
+          var n = i + 1;
+          zip.file('xl/media/logo' + n + '.png', p.logo.base64, { base64: true });
+          rels += '<Relationship Id="rId' + n + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/logo' + n + '.png"/>';
+          drawing += pictureXml('rId' + n, n + 1, p.col, p.logo);
+        });
+        zip.file('xl/drawings/_rels/drawing1.xml.rels', rels + '</Relationships>');
+        zip.file('xl/drawings/drawing1.xml', drawing + '</xdr:wsDr>');
+        zip.file('xl/worksheets/_rels/sheet1.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>');
+      }
+    };
+  }
 
   function exportColumns(table) {
     var cols = [];
@@ -197,11 +292,27 @@
       columnDefs.push(def);
     });
 
+    var cfg = ($table.data('letterhead') === true || $table.data('letterhead') === 'true') ? window.SIR_LETTERHEAD : null;
+    var excelExtra = {};
+    var printExtra = {};
+    if (cfg) {
+      var logos = { left: null, right: null };
+      loadLogo(cfg.logoLeft).then(function (l) { logos.left = l; });
+      loadLogo(cfg.logoRight).then(function (l) { logos.right = l; });
+      var sheetHooks = function () { return excelLetterhead(logos, cols.length); };
+      excelExtra = {
+        messageTop: (cfg.lines || []).join(' · '),
+        customize: function (xlsx) { sheetHooks().customize(xlsx); },
+        customizeZip: function (zip) { sheetHooks().customizeZip(zip); }
+      };
+      printExtra = { messageTop: letterheadHtml(cfg) };
+    }
+
     var order = $table.data('order');
     var buttons = withButtons ? [
       { extend: 'csvHtml5', text: '<i class="bi bi-filetype-csv me-1"></i>CSV', title: title, bom: true, exportOptions: { columns: cols } },
-      { extend: 'excelHtml5', text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel', title: title, exportOptions: { columns: cols } },
-      { extend: 'print', text: '<i class="bi bi-printer me-1"></i>Print', title: title, exportOptions: { columns: cols } },
+      $.extend({ extend: 'excelHtml5', text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel', title: title, exportOptions: { columns: cols } }, excelExtra),
+      $.extend({ extend: 'print', text: '<i class="bi bi-printer me-1"></i>Print', title: title, exportOptions: { columns: cols } }, printExtra),
       { extend: 'colvis', text: '<i class="bi bi-layout-three-columns me-1"></i>Columns' }
     ] : [];
 

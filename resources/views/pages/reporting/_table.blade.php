@@ -8,7 +8,7 @@
 
   @if ($type === 'cow')
     <div class="table-responsive">
-      <table class="table table-striped table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Cow Report" data-paging="false" data-buttons="false" data-order='[[0,"asc"]]'>
+      <table id="reportTable" data-letterhead="true" class="table table-striped table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Cow Report" data-paging="false" data-order='[[0,"asc"]]'>
         <thead class="table-light">
           <tr>
             <th data-priority="1" data-filter="text">Eartagno</th>
@@ -51,7 +51,7 @@
     </div>
   @elseif ($type === 'status')
     <div class="table-responsive">
-      <table class="table table-striped table-bordered table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Insemination Status Report" data-paging="false" data-buttons="false" data-order='[[0,"asc"]]'>
+      <table id="reportTable" data-letterhead="true" class="table table-striped table-bordered table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Insemination Status Report" data-paging="false" data-order='[[0,"asc"]]'>
         <thead class="table-primary">
           <tr>
             <th data-priority="1" data-filter="text">Ear Tag Number</th>
@@ -90,7 +90,7 @@
     @endforeach
     @php $located = in_array($type, ['district', 'sector'], true); @endphp
     <div class="table-responsive">
-      <table class="table table-striped table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Insemination Report" data-paging="false" data-buttons="false" data-order='[[0,"asc"]]'>
+      <table id="reportTable" data-letterhead="true" class="table table-striped table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Insemination Report" data-paging="false" data-order='[[0,"asc"]]'>
         <thead class="table-light">
           <tr>
             <th data-priority="1" data-filter="text">Eartagno</th>
@@ -147,8 +147,8 @@
   </div>
 
   <div class="no-print d-flex flex-column flex-sm-row justify-content-between gap-2 mt-3">
-    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Print Report
+    <button type="button" class="btn btn-outline-secondary" onclick="$('#reportTable').DataTable().button('.buttons-excel').trigger()">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export to excel
     </button>
     <button type="button" class="btn btn-primary" onclick="window.print()">
       <i class="bi bi-printer me-1"></i>Print Report

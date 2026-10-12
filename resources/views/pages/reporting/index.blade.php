@@ -5,15 +5,24 @@
 @section('page_sub', 'Search records and print official reports')
 
 @push('head')
+  <script>
+    window.SIR_LETTERHEAD = {
+      lines: ['Huye District', 'Smart InsemRecord', 'Ngoma'],
+      logoLeft: @json(asset('admin-assets/images/Coat.png')),
+      logoRight: @json(asset('admin-assets/images/RAB_Logo.png'))
+    };
+  </script>
   <style>
     .report-sheet { background: #fff; border: 1px solid var(--bs-border-color); border-radius: .75rem; padding: 1.25rem; }
     .report-sheet table { font-size: .85rem; }
     .report-sheet th { white-space: nowrap; }
     @media print {
+      @page { size: A4 landscape; margin: 10mm; }
       .page-head { display: none !important; }
       .report-sheet { border: 0; padding: 0; }
       .report-sheet .table-responsive { overflow: visible !important; }
-      .report-sheet table { font-size: 8pt; }
+      .report-sheet table { font-size: 7pt; }
+      .report-sheet th, .report-sheet td { padding: .15rem .25rem !important; }
       .report-sheet th { white-space: normal; }
       .report-sheet .dt-search, .report-sheet .dt-length, .report-sheet .dt-info, .report-sheet .dt-paging,
       .report-sheet .dt-buttons, .report-sheet .sir-filters { display: none !important; }

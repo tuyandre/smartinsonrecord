@@ -51,7 +51,9 @@
       </div>
 
       <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-2 gap-sm-4 mt-4 small">
-        <a href="{{ route('sign-up') }}" class="text-decoration-none"><i class="bi bi-person-plus me-1"></i>Create new account</a>
+        @if (Route::has('sign-up'))
+          <a href="{{ route('sign-up') }}" class="text-decoration-none"><i class="bi bi-person-plus me-1"></i>Create new account</a>
+        @endif
         <a href="{{ route('landing') }}" class="text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Back to landing page</a>
       </div>
     </div>

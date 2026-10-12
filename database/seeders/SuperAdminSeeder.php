@@ -29,7 +29,7 @@ class SuperAdminSeeder extends Seeder
         $user->fill([
             'name' => 'Super Admin',
             'username' => env('SUPERADMIN_USERNAME', 'superadmin'),
-            'email' => env('SUPERADMIN_EMAIL', 'superadmin@insemination.test'),
+            'email' => env('SUPERADMIN_EMAIL', 'superadmin@insemination.rw'),
             'role_id' => Role::where('name', PermissionCatalog::SUPERADMIN)->value('id'),
         ]);
 

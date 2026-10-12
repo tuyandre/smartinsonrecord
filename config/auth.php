@@ -15,6 +15,12 @@ return [
     |
     */
 
+    /*
+    | Set SIGNUP_ENABLED=false in .env to disable public vet sign-up (routes return 404, links are hidden).
+    */
+
+    'signup_enabled' => (bool) env('SIGNUP_ENABLED', true),
+
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),

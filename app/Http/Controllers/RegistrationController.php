@@ -7,11 +7,13 @@ use App\Models\Generation;
 use App\Models\InseminatedCow;
 use App\Models\User;
 use App\Services\BullsApi;
+use App\Services\RwandaAddress;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RegistrationController extends Controller
@@ -38,11 +40,10 @@ class RegistrationController extends Controller
             'bullCount' => $bulls->count(),
             'bullNames' => $bulls->names(),
             'breeds' => ['Ankole', 'Fresian', 'Browns Swiss', 'Jersey', 'Sahiwar'],
-            'districts' => ['Bugesera', 'Burera', 'Gakenke', 'Gasabo', 'Gatsibo', 'Gicumbi', 'Gisagara', 'Huye', 'Kamonyi', 'Karongi', 'Kayonza', 'Kicukiro', 'Kirehe', 'Muhanga', 'Musanze', 'Ngoma', 'Ngororero', 'Nyabihu', 'Nyagatare', 'Nyamagabe', 'Nyamasheke', 'Nyanza', 'Nyarugenge', 'Nyaruguru', 'Rubavu', 'Ruhango', 'Rulindo', 'Rusizi', 'Rutsiro', 'Rwamagana'],
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, RwandaAddress $address): RedirectResponse
     {
         $data = $request->validate([
             'cow_name' => ['required', 'string', 'max:20'],
@@ -69,6 +70,8 @@ class RegistrationController extends Controller
             'cell.not_in' => 'Please choose a cell',
             'village.not_in' => 'Please choose a village',
         ]);
+
+        $this->assertValidLocation($address, $data);
 
         $percentage1 = (int) ($data['cross_breed1_percentage'] ?? 0);
         $percentage2 = (int) ($data['cross_breed2_percentage'] ?? 0);
@@ -101,7 +104,7 @@ class RegistrationController extends Controller
         return redirect()->route('registration.index')->with('swal', ['title' => 'Success!', 'text' => 'Cow information successfully saved', 'icon' => 'success']);
     }
 
-    public function update(Request $request, int $eartagno): RedirectResponse
+    public function update(Request $request, RwandaAddress $address, int $eartagno): RedirectResponse
     {
         $cow = Cow::findOrFail($eartagno);
 
@@ -122,6 +125,12 @@ class RegistrationController extends Controller
             'cell' => ['required', 'string', 'max:25'],
             'village' => ['required', 'string', 'max:25'],
         ]);
+
+        $unchanged = [$cow->District, $cow->Sector, $cow->Cell, $cow->Village]
+            === [$data['district'], $data['sector'], $data['cell'], $data['village']];
+        if (! $unchanged) {
+            $this->assertValidLocation($address, $data);
+        }
 
         try {
             $cow->update([
@@ -192,5 +201,13 @@ class RegistrationController extends Controller
         $eartagno = $request->validate(['eartagno' => ['required', 'integer']])['eartagno'];
 
         return response()->json(Cow::find($eartagno));
+    }
+
+    /** Rejects district/sector/cell/village combinations that are not in Rwanda's address list. */
+    private function assertValidLocation(RwandaAddress $address, array $data): void
+    {
+        if (! $address->isValid($data['district'], $data['sector'], $data['cell'], $data['village'])) {
+            throw ValidationException::withMessages(['village' => 'Please choose a valid district, sector, cell and village.']);
+        }
     }
 }

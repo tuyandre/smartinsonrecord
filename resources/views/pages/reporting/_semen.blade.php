@@ -14,7 +14,7 @@
   @include('pages.reporting._letterhead', ['title' => 'Available Bulls and Semen Information'])
 
   <div class="table-responsive">
-    <table class="table table-striped table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Available Bulls and Semen Information" data-paging="false" data-buttons="false" data-order='[[0,"asc"]]'>
+    <table id="semenTable" data-letterhead="true" class="table table-striped table-sm align-middle mb-0 sir-table" data-responsive="false" data-title="Available Bulls and Semen Information" data-paging="false" data-order='[[0,"asc"]]'>
       <thead class="table-light">
         <tr>
           @foreach ($columns as $key => $label)
@@ -42,7 +42,7 @@
   </div>
 
   <div class="no-print d-flex flex-column flex-sm-row justify-content-between gap-2 mt-3">
-    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+    <button type="button" class="btn btn-outline-secondary" onclick="$('#semenTable').DataTable().button('.buttons-excel').trigger()">
       <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export to excel
     </button>
     <button type="button" class="btn btn-primary" onclick="window.print()">
