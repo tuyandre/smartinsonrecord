@@ -25,5 +25,9 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::before(
             fn ($user, string $ability) => $user->hasPermission($ability) ? true : null
         );
+
+        \Illuminate\Support\Facades\View::composer('layouts.app', function ($view) {
+            $view->with('notifications', auth()->check() ? app(\App\Services\Notifications::class)->all() : []);
+        });
     }
 }

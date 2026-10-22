@@ -29,9 +29,10 @@
 
   <div class="card">
     <div class="card-body">
-      <table class="table table-hover align-middle sir-table" data-title="Users" data-order='[[1,"asc"]]'>
+      <table class="table table-hover align-middle sir-table sir-actions-left" data-title="Users" data-order='[[2,"asc"]]'>
         <thead>
           <tr>
+            <th data-orderable="false" data-export="false" data-priority="1">Actions</th>
             <th data-type="num">#</th>
             <th data-priority="1" data-filter="text">Name</th>
             <th>RCVD ID</th>
@@ -39,12 +40,34 @@
             <th data-filter="text">Email</th>
             <th>Phone</th>
             <th data-filter="select">Role</th>
-            <th class="text-end" data-priority="1" data-orderable="false" data-export="false">Actions</th>
           </tr>
         </thead>
         <tbody>
           @foreach ($users as $user)
             <tr>
+              <td class="text-nowrap">
+                @if ($canManage($user))
+                  <x-row-actions>
+                    @can('users.edit')
+                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#userModal" data-mode="edit"
+                      data-action="{{ route('users.update', $user) }}"
+                      data-name="{{ $user->name }}" data-rcvd="{{ $user->rcvd_id }}" data-username="{{ $user->username }}"
+                      data-email="{{ $user->email }}" data-phone="{{ $user->phone }}" data-role="{{ $user->role_id }}"><i class="bi bi-pencil-square"></i> Edit</button></li>
+                    @endcan
+                    @unless ($user->is(auth()->user()))
+                      @can('users.delete')
+                      <li><form method="POST" action="{{ route('users.destroy', $user) }}" class="d-inline js-delete" data-name="{{ $user->name }}">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> Delete</button>
+                      </form></li>
+                      @endcan
+                    @endunless
+                  </x-row-actions>
+                @else
+                  <span class="text-muted">—</span>
+                @endif
+              </td>
               <td>{{ $user->id }}</td>
               <td>
                 <div class="d-flex align-items-center gap-2">
@@ -57,29 +80,6 @@
               <td>{{ $user->email }}</td>
               <td>{{ $user->phone }}</td>
               <td><span class="badge {{ $roleClass($user) }}">{{ $user->roleLabel() }}</span></td>
-              <td class="text-end">
-                @if ($canManage($user))
-                  <div class="table-actions justify-content-end">
-                    @can('users.edit')
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-mode="edit"
-                      data-action="{{ route('users.update', $user) }}"
-                      data-name="{{ $user->name }}" data-rcvd="{{ $user->rcvd_id }}" data-username="{{ $user->username }}"
-                      data-email="{{ $user->email }}" data-phone="{{ $user->phone }}" data-role="{{ $user->role_id }}"><i class="bi bi-pencil-square"></i> Edit</button>
-                    @endcan
-                    @unless ($user->is(auth()->user()))
-                      @can('users.delete')
-                      <form method="POST" action="{{ route('users.destroy', $user) }}" class="d-inline js-delete" data-name="{{ $user->name }}">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
-                      </form>
-                      @endcan
-                    @endunless
-                  </div>
-                @else
-                  <span class="text-muted">—</span>
-                @endif
-              </td>
             </tr>
           @endforeach
         </tbody>

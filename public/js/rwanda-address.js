@@ -38,6 +38,7 @@
     }
     select.value = selected || '--';
     select.disabled = names.length === 0 && !selected;
+    if (window.jQuery) jQuery(select).trigger('change.select2');
   }
 
   function attach(container, values) {
@@ -92,13 +93,19 @@
       render('district', values);
 
       LEVELS.slice(0, 4).forEach(function (level, i) {
-        sel[level].onchange = function () {
+        var onChange = function () {
           if (level === 'district' && sel.province.value === '--') {
             var p = provinceOf(sel.district.value);
-            if (p) { sel.province.value = p; }
+            if (p) {
+              sel.province.value = p;
+              if (window.jQuery) { jQuery(sel.province).trigger('change.select2'); }
+            }
           }
           render(LEVELS[i + 1]);
         };
+        // Select2 only fires jQuery change events, so listen through jQuery when it is available.
+        if (window.jQuery) { jQuery(sel[level]).off('change.rwa').on('change.rwa', onChange); }
+        else { sel[level].onchange = onChange; }
       });
     });
   }

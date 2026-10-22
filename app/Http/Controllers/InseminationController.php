@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InseminatedCow;
-use App\Models\User;
-use App\Services\BullsApi;
+use App\Models\Bull;
+use App\Models\SemenLot;
+use App\Services\Relatedness;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +26,7 @@ class InseminationController extends Controller
         'Prulent Macus',
     ];
 
-    public function index(Request $request, BullsApi $bulls): View
+    public function index(Request $request): View
     {
         $pattern = trim((string) $request->query('pattern', ''));
         $searchResults = null;
@@ -46,14 +46,21 @@ class InseminationController extends Controller
                 ->get();
         }
 
-        $bullList = $bulls->all();
+        // Semen batches registered for each bull. The semen choice always follows the bull chosen.
+        $semenByBull = [];
+        foreach (SemenLot::with('semen')->orderBy('id')->get() as $lot) {
+            $semenByBull[(string) $lot->semen->bull_eartag][] = [
+                'code' => $lot->semen_code,
+                'label' => 'Semen code '.$lot->semen_code.' · frozen '.$lot->freezing_date->format('d/m/Y'),
+            ];
+        }
+
+        $selectedCow = old('eartag') ? DB::table('cows')->where('Eartagno', old('eartag'))->first(['Eartagno', 'Name']) : null;
 
         return view('pages.insemination.index', [
-            'totalInseminated' => InseminatedCow::count(),
-            'totalVets' => User::count(),
-            'bullCount' => count($bullList),
-            'bullNames' => $bulls->names(),
-            'bulls' => $bullList,
+            'registeredBulls' => Bull::orderBy('Name')->get(['Eartagno', 'Name']),
+            'semenByBull' => $semenByBull,
+            'selectedCow' => $selectedCow,
             'observations' => self::OBSERVATIONS,
             'searchResults' => $searchResults,
             'pattern' => $pattern,
@@ -64,27 +71,43 @@ class InseminationController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'eartag' => ['required', 'integer', 'exists:cows,Eartagno'],
+            'eartag' => ['required', 'regex:/^[A-Za-z0-9]+$/', 'max:30', 'exists:cows,Eartagno'],
             'pre_calv' => ['nullable', 'date'],
             'heat_obs' => ['required', 'date'],
             'hours_heat' => ['required', 'string', 'max:10'],
-            'semen' => ['required', 'string', 'max:30'],
+            'bull_used' => ['required', 'regex:/^[A-Za-z0-9]+$/', 'exists:bulls,Eartagno'],
+            'semen' => ['required', 'string', 'max:20'],
             'mating' => ['required', 'in:1,2,3'],
             'obsr' => ['nullable', 'array'],
             'obsr.*' => ['string', 'in:'.implode(',', self::OBSERVATIONS)],
         ], [
             'eartag.exists' => 'Cow Eartagno Information Not Found',
+            'bull_used.required' => 'Choose a registered bull.',
+            'bull_used.exists' => 'Choose a registered bull.',
         ]);
 
         $vet = $request->user();
-        $eartag = (int) $data['eartag'];
+
+        $belongs = SemenLot::where('semen_code', $data['semen'])
+            ->whereHas('semen', fn ($q) => $q->where('bull_eartag', $data['bull_used']))
+            ->exists();
+        if (! $belongs) {
+            return back()->withInput()->with('swal', ['title' => 'Check the semen', 'text' => 'The semen code does not belong to the selected bull.', 'icon' => 'warning']);
+        }
+
+        $eartag = (string) $data['eartag'];
         $mating = (int) $data['mating'];
         $observation = implode(', ', $data['obsr'] ?? []);
         $insemDate = now()->format('Y-m-d H:i:s');
         $vetName = (string) $vet->name;
         $vetRcvd = (string) $vet->rcvd_id;
         $vetEmail = (string) $vet->email;
-        $semen = $data['semen'];
+        $bullTag = (string) $data['bull_used'];
+        $semen = $bullTag.' ('.$data['semen'].')';
+
+        if ($reason = app(Relatedness::class)->between($eartag, $bullTag)) {
+            return back()->withInput()->with('swal', ['title' => 'Insemination not allowed', 'text' => $reason, 'icon' => 'warning']);
+        }
 
         if ($mating === 1) {
             DB::table('inseminated_cows')->insert([
@@ -94,7 +117,7 @@ class InseminationController extends Controller
                 'Heat_Observation_Date_1' => $data['heat_obs'],
                 'Hours_Heat_Observation_1' => $data['hours_heat'],
                 'Insemination_Date_1' => $insemDate,
-                'Bull_Used_1' => Str::limit($semen, 30, ''),
+                'Bull_Used_1' => Str::limit($semen, 60, ''),
                 'Observation1' => Str::limit($observation, 70, ''),
                 'Veternary_Name1' => Str::limit($vetName, 30, ''),
                 'Veternary_RCVD_ID1' => (int) $vetRcvd,
@@ -127,7 +150,7 @@ class InseminationController extends Controller
                 $suffix[0] => $data['heat_obs'],
                 $suffix[1] => $data['hours_heat'],
                 $suffix[2] => $insemDate,
-                $suffix[3] => Str::limit($semen, 20, ''),
+                $suffix[3] => Str::limit($semen, 60, ''),
                 $suffix[4] => Str::limit($observation, 70, ''),
                 $suffix[5] => Str::limit($vetName, 20, ''),
                 $suffix[6] => Str::limit($vetRcvd, 10, ''),
@@ -165,6 +188,35 @@ class InseminationController extends Controller
         ]);
     }
 
+    /** Registered cows for the search select. */
+    public function cows(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+        $like = '%'.addcslashes($q, '\\%_').'%';
+
+        $rows = DB::table('cows')
+            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
+                ->where('Eartagno', 'like', $like)->orWhere('Name', 'like', $like)->orWhere('Owner_names', 'like', $like)))
+            ->orderBy('Eartagno')
+            ->limit(30)
+            ->get(['Eartagno', 'Name', 'Owner_names']);
+
+        return response()->json(['results' => $rows->map(fn ($r) => [
+            'id' => (string) $r->Eartagno,
+            'text' => $r->Eartagno.' · '.$r->Name.($r->Owner_names ? ' ('.$r->Owner_names.')' : ''),
+        ])->all()]);
+    }
+
+    /** Live check used by the form: are this cow and bull related? */
+    public function relation(Request $request, Relatedness $relatedness): JsonResponse
+    {
+        $cow = (string) $request->query('cow', '');
+        $bull = (string) $request->query('bull', '');
+        $reason = ($cow !== '' && $bull !== '') ? $relatedness->between($cow, $bull) : null;
+
+        return response()->json(['related' => $reason !== null, 'message' => $reason]);
+    }
+
     public function lastMating(Request $request): JsonResponse
     {
         $empty = ['breed' => '', 'mating_time' => 0];
@@ -175,7 +227,7 @@ class InseminationController extends Controller
         }
 
         $row = DB::table('inseminated_cows')
-            ->where('Eartagno', (int) $tag)
+            ->where('Eartagno', (string) $tag)
             ->select(['Bull_Used_1', 'Mating_Time_1', 'Bull_Used_2', 'Mating_time_2', 'Bull_Used_3', 'Mating_time_3'])
             ->first();
 

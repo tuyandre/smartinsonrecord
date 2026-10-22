@@ -13,7 +13,7 @@ Route::middleware('guest')->group(function () {
     if (config('auth.signup_enabled')) {
         Route::get('/sign-up', [AuthController::class, 'showSignUp'])->name('sign-up');
         Route::post('/sign-up', [AuthController::class, 'signUp']);
-        Route::post('/sign-up/lookup', [AuthController::class, 'lookupVet'])->name('sign-up.lookup');
+        Route::post('/sign-up/lookup', [AuthController::class, 'lookupVet'])->middleware('throttle:30,1')->name('sign-up.lookup');
     }
 });
 

@@ -120,7 +120,37 @@ table.dataTable.table-hover > tbody > tr:hover > * { box-shadow: inset 0 0 0 999
 .sir-daterange { cursor: pointer; background-color: #fff !important; }
 @media (max-width: 575.98px) { .daterangepicker { max-width: 100vw; } }
 
-/* ---------- Filter section (separate from the table card) ---------- */
-.sir-filter-card .card-header { background: #f8faff; }
-.sir-filter-card .card-body { padding: 1rem 1.25rem 1.1rem; }
-.sir-filter-card .form-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+/* ---------- Compact filter bar (above the table card) ---------- */
+.sir-filter-bar .sir-filters { background: #fff; border: 1px solid var(--bs-border-color, #e3e8f0); border-radius: .6rem; padding: .45rem .6rem; }
+.sir-filter-bar .sir-filter-icon { align-items: center; gap: .35rem; color: var(--sir-primary, #1d6fdc); padding: 0 .25rem; }
+.sir-filter-bar .sir-f { flex: 1 1 150px; max-width: 220px; min-width: 130px; }
+.sir-filter-bar .sir-filter-clear { margin-left: auto; white-space: nowrap; }
+.sir-filter-bar .form-control-sm, .sir-filter-bar .input-group-text { font-size: .8rem; }
+.sir-filter-bar .select2-container--bootstrap-5 .select2-selection { min-height: calc(1.5em + .5rem + 2px); padding: .25rem 2rem .25rem .6rem; font-size: .8rem; }
+
+/* Wide tables keep every column and scroll sideways; the Actions column stays pinned on the left. */
+.sir-actions-left th:first-child, .sir-actions-left td:first-child { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--bs-border-color, #e3e8f0); }
+.sir-actions-left thead th:first-child { background: #f8faff; z-index: 2; }
+
+/* Tables never hide columns: the table area scrolls sideways instead. */
+.dt-container .dt-layout-table > .dt-layout-cell { overflow-x: auto; }
+.dt-container table.dataTable th, .dt-container table.dataTable td { white-space: nowrap; }
+
+/* Grouped side menu: create + list of one feature under a single collapsible entry */
+.sir-nav .nav-group .chev { font-size: .75rem; width: auto; transition: transform .2s; }
+.sir-nav .nav-group[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.sir-nav .nav-group.active-group { background: rgba(255,255,255,.12); color: #fff; }
+.sir-subnav { margin: 0 .75rem .25rem 2.4rem; padding-left: .6rem; border-left: 1px solid rgba(255,255,255,.25); }
+.sir-subnav .nav-link { margin: .1rem 0; padding: .4rem .9rem; font-size: .9rem; font-weight: 400; }
+
+/* An open row-actions menu must sit above the pinned Actions cells of the rows below it. */
+.sir-actions-left td:first-child:has(.dropdown-menu.show) { z-index: 50; }
+.sir-actions-left .dropdown-menu { z-index: 1055; }
+.sir-actions-left .dropdown-menu .dropdown-item { cursor: pointer; }
+.sir-actions-left .dropdown-menu .dropdown-item { border-radius: .35rem; transition: background-color .12s; }
+.sir-actions-left .dropdown-menu .dropdown-item:hover,
+.sir-actions-left .dropdown-menu .dropdown-item:focus { background-color: rgba(29, 111, 220, .14); color: #0f4fa8; }
+.sir-actions-left .dropdown-menu form { margin: 0; }
+.sir-actions-left .dropdown-menu .dropdown-item.text-danger:hover,
+.sir-actions-left .dropdown-menu .dropdown-item.text-danger:focus { background-color: rgba(220, 53, 69, .14); color: #b02a37; }
+.sir-actions-left .dropdown-menu { padding: .3rem; }

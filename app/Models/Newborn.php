@@ -10,5 +10,6 @@ class Newborn extends Model
     public $timestamps = false;
     protected $guarded = [];
     protected $primaryKey = 'New_born_Tagno';
+    protected $keyType = 'string';
     public $incrementing = false;
 }

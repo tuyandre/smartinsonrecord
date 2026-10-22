@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
     {
         PermissionCatalog::sync();
 
+        $this->call(VeterinarianRoleSeeder::class);
         $this->call(SuperAdminSeeder::class);
     }
 }

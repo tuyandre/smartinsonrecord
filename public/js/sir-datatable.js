@@ -184,38 +184,34 @@
 
     var collapseId = id + 'Filters';
     var $bar = $(
-      '<section class="card sir-filter-card mb-3 no-print" aria-label="Filters">' +
-        '<div class="card-header d-flex align-items-center gap-2 py-2">' +
-          '<i class="bi bi-funnel text-primary"></i><span class="fw-medium">Filters</span>' +
-          '<span class="badge rounded-pill text-bg-primary d-none sir-filter-count"></span>' +
-          '<div class="ms-auto d-flex align-items-center gap-2">' +
-            '<button type="button" class="btn btn-sm btn-outline-secondary sir-filter-clear"><i class="bi bi-x-circle me-1"></i>Clear</button>' +
-            '<button type="button" class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="true" aria-controls="' + collapseId + '" title="Show / hide filters"><i class="bi bi-chevron-up"></i></button>' +
+      '<section class="sir-filter-bar no-print mb-3" aria-label="Filters">' +
+        '<button type="button" class="btn btn-sm btn-light d-md-none w-100 mb-2 text-start" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-controls="' + collapseId + '">' +
+          '<i class="bi bi-funnel text-primary me-1"></i>Filters <span class="badge rounded-pill text-bg-primary d-none sir-filter-count"></span>' +
+        '</button>' +
+        '<div class="collapse d-md-block" id="' + collapseId + '">' +
+          '<div class="sir-filters d-flex flex-wrap align-items-center gap-2">' +
+            '<span class="sir-filter-icon d-none d-md-inline-flex"><i class="bi bi-funnel"></i><span class="badge rounded-pill text-bg-primary d-none sir-filter-count"></span></span>' +
           '</div>' +
         '</div>' +
-        '<div class="collapse' + (window.innerWidth >= 576 ? ' show' : '') + '" id="' + collapseId + '"><div class="card-body"><div class="sir-filters row g-3 align-items-end"></div></div></div>' +
       '</section>'
     );
     var $grid = $bar.find('.sir-filters');
+    var $clear = $('<button type="button" class="btn btn-sm btn-link text-decoration-none sir-filter-clear"><i class="bi bi-x-circle me-1"></i>Clear</button>');
 
     var updateCount = function () {
       var active = 0;
       $grid.find('select').each(function () { if (this.value) { active++; } });
       $grid.find('input').each(function () { if (this.value) { active++; } });
-      $bar.find('.sir-filter-count').toggleClass('d-none', !active).text(active + ' active');
+      $bar.find('.sir-filter-count').toggleClass('d-none', !active).text(active);
     };
     $bar.on('change input', updateCount);
-    $bar.on('shown.bs.collapse hidden.bs.collapse', function (e) {
-      $bar.find('[data-bs-toggle="collapse"] i').attr('class', 'bi ' + (e.type === 'shown' ? 'bi-chevron-up' : 'bi-chevron-down'));
-    });
 
     cols.forEach(function (c) {
-      var $col = $('<div class="col-6 col-md-4 col-xl-3"></div>');
-      var $label = $('<label class="form-label small text-muted mb-1"></label>').text(c.label);
-      $col.append($label);
+      var $col = $('<div class="sir-f"></div>');
 
       if (c.kind === 'select') {
-        var $sel = $('<select class="form-select form-select-sm"><option value="">All</option></select>');
+        var $sel = $('<select class="form-select form-select-sm"><option value=""></option></select>').attr('aria-label', c.label);
+        $sel.find('option').text(c.label);
         var seen = {};
         api.column(c.index).data().each(function (v) {
           var t = textOf(v);
@@ -231,7 +227,7 @@
         $col.append($sel);
       } else if (c.kind === 'date') {
         var range = { from: '', to: '' };
-        var $range = $('<input type="text" class="form-control form-control-sm sir-daterange" placeholder="DD/MM/YYYY - DD/MM/YYYY" autocomplete="off" readonly>');
+        var $range = $('<input type="text" class="form-control form-control-sm sir-daterange" placeholder="' + c.label + ' range" autocomplete="off" readonly>');
         $col.append($('<div class="input-group input-group-sm"></div>')
           .append($('<span class="input-group-text"><i class="bi bi-calendar3"></i></span>'), $range));
 
@@ -246,14 +242,15 @@
         SIR.dateRange($range, function (from, to) { range.from = from; range.to = to; api.draw(); updateCount(); });
         $bar.on('sir:reset', function () { range.from = range.to = ''; $range.val(''); });
       } else {
-        var $in = $('<input type="search" class="form-control form-control-sm" placeholder="Filter…">');
+        var $in = $('<input type="search" class="form-control form-control-sm" placeholder="' + c.label + '">');
         $in.on('input', function () { api.column(c.index).search(this.value).draw(); });
         $col.append($in);
       }
       $grid.append($col);
     });
+    $grid.append($clear);
 
-    $bar.find('.sir-filter-clear').on('click', function () {
+    $clear.on('click', function () {
       $grid.find('select').val('');
       $grid.find('input').val('');
       $bar.trigger('sir:reset');
@@ -270,6 +267,18 @@
       var $card = container.closest('.card');
       ($card.length ? $card : container).before($bar);
     }
+  }
+
+  function fixMenus(el) {
+    $(el).closest('.dt-container').find('[data-bs-toggle="dropdown"]').each(function () {
+      bootstrap.Dropdown.getOrCreateInstance(this, { popperConfig: { strategy: 'fixed' } });
+    });
+  }
+
+  function fixMenus(el) {
+    $(el).closest('.dt-container').find('[data-bs-toggle="dropdown"]').each(function () {
+      bootstrap.Dropdown.getOrCreateInstance(this, { popperConfig: { strategy: 'fixed' } });
+    });
   }
 
   function init(el) {
@@ -317,7 +326,8 @@
     ] : [];
 
     var api = $table.DataTable({
-      responsive: !($table.data('responsive') === false || $table.data('responsive') === 'false'),
+      // Columns are never hidden: wide tables scroll sideways. Opt in to collapsing with data-responsive="true".
+      responsive: $table.data('responsive') === true || $table.data('responsive') === 'true',
       autoWidth: false,
       paging: paging,
       pageLength: parseInt($table.data('pageLength'), 10) || 15,
@@ -342,6 +352,8 @@
     });
 
     buildFilters($table, api, el.id);
+    fixMenus(el);
+    api.on('draw', function () { fixMenus(el); });
   }
 
   function initAll(root) {
@@ -354,11 +366,11 @@
   document.addEventListener('shown.bs.modal', function (e) {
     $(e.target).find('table.sir-table').each(function () {
       init(this);
-      $(this).DataTable().columns.adjust().responsive.recalc();
+      $(this).DataTable().columns.adjust();
     });
   });
   document.addEventListener('shown.bs.tab', function () {
-    $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust().responsive.recalc();
+    $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
   });
 
   window.SIR = window.SIR || {};

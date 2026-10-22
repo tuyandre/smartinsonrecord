@@ -10,6 +10,7 @@
 @section('content')
   @include('pages.records._toolbar')
   @php
+  $canAct = auth()->user()->can('cows.view') || auth()->user()->can('cows.edit') || auth()->user()->can('cows.delete');
   /** Normalise a stored date string to ISO YYYY-MM-DD when possible (so the date filter works). */
   $iso = function ($d) {
       $d = trim((string) $d);
@@ -22,9 +23,11 @@
 
   <div class="card">
     <div class="card-body">
-      <table class="table table-hover align-middle sir-table" data-title="Registered Cows" data-order='[[0,"asc"]]' data-page-length="15">
+      <div class="table-responsive">
+      <table class="table table-hover align-middle sir-table sir-actions-left" data-responsive="false" data-title="Registered Cows" data-order='[[@if ($canAct) 1 @else 0 @endif,"asc"]]' data-page-length="15">
         <thead>
           <tr>
+            @if ($canAct)<th data-orderable="false" data-export="false" data-priority="1">Actions</th>@endif
             <th data-priority="1">Eartag</th>
             <th data-priority="1">Name</th>
             <th data-filter="select" data-priority="3">Gender</th>
@@ -45,6 +48,32 @@
         <tbody>
           @foreach($rows as $r)
             <tr>
+              @if ($canAct)
+                <td class="text-nowrap">
+                  <div class="dropdown">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for {{ $r->Name }}">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                      @can('cows.view')
+                        <li><a class="dropdown-item" href="{{ route('cows.show', $r->Eartagno) }}"><i class="bi bi-eye me-2 text-secondary"></i>View</a></li>
+                      @endcan
+                      @can('cows.edit')
+                        <li><a class="dropdown-item" href="{{ route('cows.edit', $r->Eartagno) }}"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit</a></li>
+                      @endcan
+                      @can('cows.delete')
+                        <li>
+                          <form action="{{ route('registration.destroy', $r->Eartagno) }}" method="POST" class="delete-cow-form">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Delete</button>
+                          </form>
+                        </li>
+                      @endcan
+                    </ul>
+                  </div>
+                </td>
+              @endif
               <td class="fw-semibold">{{ $r->Eartagno }}</td>
               <td>{{ $r->Name }}</td>
               <td>{{ $r->Gender }}</td>
@@ -64,6 +93,27 @@
           @endforeach
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 @endsection
+
+@push('scripts')
+  <script>
+    // Fixed positioning keeps the menu from being clipped by the scrolling table wrapper.
+    function fixMenus() {
+      document.querySelectorAll('.sir-actions-left [data-bs-toggle="dropdown"]').forEach(function (el) {
+        bootstrap.Dropdown.getOrCreateInstance(el, { popperConfig: { strategy: 'fixed' } });
+      });
+    }
+    fixMenus();
+    $('.sir-actions-left').on('draw.dt init.dt', fixMenus);
+
+    $(document).on('submit', '.delete-cow-form', function (event) {
+      event.preventDefault();
+      var form = this;
+      swal({ title: 'Are you sure?', text: 'This cow record will be deleted.', icon: 'warning', buttons: true, dangerMode: true })
+        .then(function (confirmed) { if (confirmed) { form.submit(); } });
+    });
+  </script>
+@endpush

@@ -10,5 +10,6 @@ class Cow extends Model
     public $timestamps = false;
     protected $guarded = [];
     protected $primaryKey = 'Eartagno';
+    protected $keyType = 'string';
     public $incrementing = false;
 }

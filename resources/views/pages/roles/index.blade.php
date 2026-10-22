@@ -22,14 +22,14 @@
 @section('content')
   <div class="card">
     <div class="card-body">
-      <table class="table table-hover align-middle sir-table" data-title="Roles" data-order='[[0,"asc"]]' data-buttons="false">
+      <table class="table table-hover align-middle sir-table sir-actions-left" data-title="Roles" data-order='[[1,"asc"]]' data-buttons="false">
         <thead>
           <tr>
+            <th data-orderable="false" data-export="false" data-priority="1">Actions</th>
             <th data-priority="1">Role</th>
             <th>Description</th>
             <th data-type="num">Users</th>
             <th data-type="num">Permissions</th>
-            <th class="text-end" data-priority="1" data-orderable="false" data-export="false">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -43,6 +43,22 @@
               ];
             @endphp
             <tr>
+              <td class="text-nowrap"><x-row-actions>              
+                
+                  @if (in_array($role->id, $editable, true))
+                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#roleModal" data-mode="edit"
+                      data-role="{{ json_encode($payload) }}"><i class="bi bi-pencil-square"></i> Edit</button></li>
+                    @unless ($role->is_system)
+                      <li><form method="POST" action="{{ route('roles.destroy', $role) }}" class="d-inline js-delete-role" data-name="{{ $role->label }}">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> Delete</button>
+                      </form></li>
+                    @endunless
+                  @else
+                    <li><span class="dropdown-item-text text-muted">No actions</span></li>
+                  @endif
+                </x-row-actions></td>
               <td>
                 <span class="fw-semibold">{{ $role->label }}</span>
                 @if ($role->isSuperAdmin()) <span class="badge text-bg-danger">Locked</span>
@@ -56,23 +72,6 @@
                 @else
                   {{ $role->permissions->count() }} / {{ $permissions->flatten()->count() }}
                 @endif
-              </td>
-              <td class="text-end">
-                <div class="table-actions justify-content-end">
-                  @if (in_array($role->id, $editable, true))
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roleModal" data-mode="edit"
-                      data-role="{{ json_encode($payload) }}"><i class="bi bi-pencil-square"></i> Edit</button>
-                    @unless ($role->is_system)
-                      <form method="POST" action="{{ route('roles.destroy', $role) }}" class="d-inline js-delete-role" data-name="{{ $role->label }}">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
-                      </form>
-                    @endunless
-                  @else
-                    <span class="text-muted">—</span>
-                  @endif
-                </div>
               </td>
             </tr>
           @endforeach

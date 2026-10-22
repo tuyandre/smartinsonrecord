@@ -65,7 +65,7 @@ class RecordsController extends Controller
         foreach ([1, 2, 3] as $n) {
             $sel = DB::table('generations as g')
                 ->leftJoin('cows as c', 'c.Eartagno', '=', 'g.Eartagno')
-                ->where("g.Calf_Eartagno_$n", '!=', 0)
+                ->where("g.Calf_Eartagno_$n", '!=', '0')
                 ->selectRaw("g.Eartagno as mother_tag, c.Name as mother_name, $n as calf_no, g.Calf_Eartagno_$n as calf_tag, g.Breed_$n as breed, g.Dob_$n as dob, g.Weight_at_Birth_$n as weight, g.Birth_Times_$n as birth_times, g.Observation_$n as observation, g.Disability_$n as disability");
             $union = $union ? $union->unionAll($sel) : $sel;
         }

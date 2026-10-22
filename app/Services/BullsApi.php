@@ -13,15 +13,27 @@ class BullsApi
 {
     public function all(): array
     {
-        return Cache::remember('bulls_api', 300, function () {
-            try {
-                $data = Http::timeout(5)->get(config('services.bulls.url'))->json();
-            } catch (\Throwable) {
-                return [];
-            }
+        if (is_array($cached = Cache::get('bulls_api'))) {
+            return $cached;
+        }
 
-            return is_array($data) ? $data : [];
-        });
+        // The external service can be slow or down: give up quickly so a page never waits long for it.
+        try {
+            $data = Http::connectTimeout(2)->timeout(4)->get(config('services.bulls.url'))->json();
+        } catch (\Throwable) {
+            $data = null;
+        }
+
+        if (is_array($data)) {
+            Cache::put('bulls_api', $data, 300);
+
+            return $data;
+        }
+
+        // Remember the failure only briefly, so the service is retried soon without slowing every page.
+        Cache::put('bulls_api', [], 30);
+
+        return [];
     }
 
     public function count(): int

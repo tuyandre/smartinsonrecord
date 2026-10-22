@@ -46,13 +46,13 @@ class PdController extends Controller
     public function lookup(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'pd_eartagno' => ['required', 'integer'],
+            'pd_eartagno' => ['required', 'regex:/^[A-Za-z0-9]+$/', 'max:30'],
         ], [
             'pd_eartagno.required' => 'Provide a cow ear tag number.',
-            'pd_eartagno.integer' => 'Provide a valid cow ear tag number.',
+            'pd_eartagno.regex' => 'Ear tag may contain only letters and digits.',
         ]);
 
-        $latest = $this->latestInseminationDate((int) $data['pd_eartagno']);
+        $latest = $this->latestInseminationDate((string) $data['pd_eartagno']);
 
         if ($latest === null) {
             return redirect()->route('pd.index')->with('swal', [
@@ -71,7 +71,7 @@ class PdController extends Controller
         }
 
         return redirect()->route('pd.index')->with('pd_candidate', [
-            'eartagno' => (int) $data['pd_eartagno'],
+            'eartagno' => (string) $data['pd_eartagno'],
             'insemination_date' => $latest,
         ]);
     }
@@ -79,11 +79,11 @@ class PdController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'eartagno' => ['required', 'integer'],
+            'eartagno' => ['required', 'regex:/^[A-Za-z0-9]+$/', 'max:30'],
             'status' => ['required', 'in:Conception,Not Pregnant'],
         ]);
 
-        $latest = $this->latestInseminationDate((int) $data['eartagno']);
+        $latest = $this->latestInseminationDate((string) $data['eartagno']);
 
         if ($latest === null || $latest < date('Y-m-d', strtotime('-9 months'))) {
             return redirect()->route('pd.index')->with('swal', [
@@ -94,7 +94,7 @@ class PdController extends Controller
         }
 
         Pd::create([
-            'Eartagno' => (int) $data['eartagno'],
+            'Eartagno' => (string) $data['eartagno'],
             'Observation' => $data['status'],
         ]);
 
@@ -105,7 +105,7 @@ class PdController extends Controller
         ]);
     }
 
-    private function latestInseminationDate(int $eartagno): ?string
+    private function latestInseminationDate(string $eartagno): ?string
     {
         $row = DB::table('inseminated_cows')
             ->where('Eartagno', $eartagno)

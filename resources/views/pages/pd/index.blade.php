@@ -9,49 +9,6 @@
 @endpush
 
 @section('content')
-  <div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card stat-card h-100">
-        <div class="icon"><i class="bi bi-heart-pulse"></i></div>
-        <div>
-          <div class="value">{{ $totalInseminated }}</div>
-          <div class="label fw-medium">Inseminated Cows</div>
-          <div class="hint">Entire Number</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card stat-card h-100">
-        <div class="icon green"><i class="bi bi-person-badge"></i></div>
-        <div>
-          <div class="value">{{ $totalVets }}</div>
-          <div class="label fw-medium">Veternaries</div>
-          <div class="hint">+1(New)</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card stat-card h-100">
-        <div class="icon amber"><i class="bi bi-droplet-half"></i></div>
-        <div class="overflow-hidden">
-          <div class="value">{{ $bullCount }}</div>
-          <div class="label fw-medium">Semens</div>
-          <div class="hint text-truncate" title="{{ implode(', ', $bullNames) }}">From {{ implode(', ', $bullNames) }}</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card stat-card h-100">
-        <div class="icon violet"><i class="bi bi-gem"></i></div>
-        <div class="overflow-hidden">
-          <div class="value">{{ $bullCount }}</div>
-          <div class="label fw-medium">Bulls</div>
-          <div class="hint text-truncate" title="{{ implode(', ', $bullNames) }}">Includes {{ implode(', ', $bullNames) }}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="row g-3">
     <div class="col-12 col-lg-7">
       <div class="card h-100">

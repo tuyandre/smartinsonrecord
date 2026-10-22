@@ -10,45 +10,83 @@
   <link rel="stylesheet" href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
   <link rel="stylesheet" href="{{ asset('vendor/datatables/datatables.bundle.min.css') }}">
   <link rel="stylesheet" href="{{ asset('vendor/daterangepicker/daterangepicker.css') }}">
+  <link rel="stylesheet" href="{{ asset('vendor/select2/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('vendor/select2/select2-bootstrap-5-theme.min.css') }}">
   <link rel="stylesheet" href="{{ asset('css/app.css') }}">
   @stack('head')
 </head>
 <body>
   @php
     $user = auth()->user();
+    // Entry = single link [route, label, icon, activePattern]
+    //       or a feature group ['group', label, icon, [[route, label, activePattern], ...]] (create + list together)
     $nav = [
       'Main' => [
         ['dashboard', 'Dashboard', 'bi-speedometer2', 'dashboard'],
       ],
-      'Data Entry' => [
-        ['registration.index', 'Cow Registration', 'bi-plus-circle', 'registration.*'],
-        ['insemination.index', 'Cow Insemination', 'bi-heart-pulse', 'insemination.*'],
-        ['newborn.index', 'New Born Calf', 'bi-emoji-smile', 'newborn.*'],
-        ['pd.index', 'PD Info', 'bi-clipboard2-pulse', 'pd.*'],
-      ],
-      'Recorded Data' => [
-        ['records.cows', 'Registered Cows', 'bi-list-ul', 'records.cows'],
-        ['records.inseminations', 'Inseminations', 'bi-list-check', 'records.inseminations'],
-        ['records.calves', 'Calves', 'bi-journal-text', 'records.calves'],
-        ['records.pd', 'PD Records', 'bi-journal-medical', 'records.pd'],
+      'Features' => [
+        ['group', 'Cows', 'bi-tag', [
+          ['registration.index', 'Register Cow', 'registration.*'],
+          ['records.cows', 'Registered Cows', 'records.cows'],
+        ]],
+        ['group', 'Bulls', 'bi-gender-male', [
+          ['bulls.create', 'Register Bull', 'bulls.create'],
+          ['bulls.index', 'Registered Bulls', 'bulls.index'],
+        ]],
+        ['group', 'Semen', 'bi-droplet-half', [
+          ['semen.create', 'Register Semen', 'semen.create'],
+          ['semen.index', 'Semen List', 'semen.index'],
+        ]],
+        ['group', 'Inseminations', 'bi-heart-pulse', [
+          ['insemination.index', 'New Insemination', 'insemination.*'],
+          ['records.inseminations', 'Insemination List', 'records.inseminations'],
+        ]],
+        ['group', 'Calves', 'bi-emoji-smile', [
+          ['newborn.index', 'Register Calf', 'newborn.*'],
+          ['records.calves', 'Calf List', 'records.calves'],
+        ]],
+        ['group', 'PD', 'bi-clipboard2-pulse', [
+          ['pd.index', 'New PD Info', 'pd.*'],
+          ['records.pd', 'PD Records', 'records.pd'],
+        ]],
       ],
       'Analysis' => [
         ['pedigree.index', 'Pedigree', 'bi-diagram-3', 'pedigree.*'],
-        ['reporting.index', 'Semen Info &amp; Reporting', 'bi-file-earmark-bar-graph', 'reporting.*'],
+        ['reporting.index', 'Reports', 'bi-file-earmark-bar-graph', 'reporting.*'],
+      ],
+      'Administration' => [
+        ['group', 'Veterinarians', 'bi-person-badge', [
+          ['veterinarians.index', 'Veterinarians List', 'veterinarians.index'],
+          ['veterinarians.create', 'Register Veterinarian', 'veterinarians.create'],
+          ['veterinarians.import', 'Import List', 'veterinarians.import'],
+        ]],
+        ['users.index', 'User Management', 'bi-people', 'users.*'],
+        ['roles.index', 'Roles &amp; Permissions', 'bi-shield-lock', 'roles.*'],
       ],
     ];
-    $nav['Administration'] = [
-      ['users.index', 'User Management', 'bi-people', 'users.*'],
-      ['roles.index', 'Roles &amp; Permissions', 'bi-shield-lock', 'roles.*'],
-    ];
 
-    // each menu item is shown only when the user holds the permission its route requires
+    // each link is shown only when the user holds the permission its route requires
+    $can = function ($route) use ($user) {
+      $needs = \App\Support\PermissionCatalog::ROUTES[$route] ?? null;
+
+      return ! $needs || $user->hasPermission($needs);
+    };
     $nav = collect($nav)
-      ->map(fn ($items) => array_values(array_filter($items, function ($item) use ($user) {
-        $needs = \App\Support\PermissionCatalog::ROUTES[$item[0]] ?? null;
+      ->map(function ($items) use ($can) {
+        $out = [];
+        foreach ($items as $item) {
+          if ($item[0] === 'group') {
+            $subs = array_values(array_filter($item[3], fn ($sub) => $can($sub[0])));
+            if ($subs) {
+              $out[] = ['group', $item[1], $item[2], $subs];
+            }
+          } elseif ($can($item[0])) {
+            $out[] = $item;
+          }
+        }
 
-        return ! $needs || $user->hasPermission($needs);
-      })))
+        return $out;
+      })
       ->filter()
       ->all();
   @endphp
@@ -70,12 +108,30 @@
         @foreach ($nav as $group => $items)
           <div class="sir-nav-title">{{ $group }}</div>
           <ul class="nav flex-column">
-            @foreach ($items as [$routeName, $label, $icon, $pattern])
-              <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs($pattern) ? 'active' : '' }}" href="{{ route($routeName) }}">
-                  <i class="bi {{ $icon }}"></i><span>{!! $label !!}</span>
-                </a>
-              </li>
+            @foreach ($items as $item)
+              @if ($item[0] === 'group')
+                @php
+                  $open = collect($item[3])->contains(fn ($sub) => request()->routeIs($sub[2]));
+                  $gid = 'nav-'.\Illuminate\Support\Str::slug($item[1]);
+                @endphp
+                <li class="nav-item">
+                  <a class="nav-link nav-group {{ $open ? 'active-group' : '' }}" data-bs-toggle="collapse" href="#{{ $gid }}" role="button" aria-expanded="{{ $open ? 'true' : 'false' }}" aria-controls="{{ $gid }}">
+                    <i class="bi {{ $item[2] }}"></i><span>{{ $item[1] }}</span><i class="bi bi-chevron-down chev ms-auto"></i>
+                  </a>
+                  <ul class="nav flex-column sir-subnav collapse {{ $open ? 'show' : '' }}" id="{{ $gid }}">
+                    @foreach ($item[3] as [$routeName, $label, $pattern])
+                      <li><a class="nav-link {{ request()->routeIs($pattern) ? 'active' : '' }}" href="{{ route($routeName) }}"><span>{{ $label }}</span></a></li>
+                    @endforeach
+                  </ul>
+                </li>
+              @else
+                @php [$routeName, $label, $icon, $pattern] = $item; @endphp
+                <li class="nav-item">
+                  <a class="nav-link {{ request()->routeIs($pattern) ? 'active' : '' }}" href="{{ route($routeName) }}">
+                    <i class="bi {{ $icon }}"></i><span>{!! $label !!}</span>
+                  </a>
+                </li>
+              @endif
             @endforeach
           </ul>
         @endforeach
@@ -104,12 +160,27 @@
           <a class="btn btn-light d-sm-none" href="{{ route('dashboard') }}" aria-label="Search"><i class="bi bi-search"></i></a>
         @endcan
         <span class="d-none d-md-inline text-muted small">{{ $user->rcvd_id }}</span>
-        @can('reports.view')
-          <a class="btn btn-light position-relative" href="{{ route('reporting.index') }}" title="Available bulls">
+        <div class="dropdown">
+          <button class="btn btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
             <i class="bi bi-bell"></i>
-            <span class="badge rounded-pill text-bg-success badge-dot">{{ app(\App\Services\BullsApi::class)->count() }}</span>
-          </a>
-        @endcan
+            @if (count($notifications))
+              <span class="badge rounded-pill text-bg-success badge-dot">{{ count($notifications) }}</span>
+            @endif
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end p-0" style="width:340px;max-height:380px;overflow-y:auto">
+            <li class="px-3 py-2 fw-medium border-bottom">Notifications</li>
+            @forelse (array_slice($notifications, 0, 15) as $n)
+              <li>
+                <a class="dropdown-item d-flex gap-2 py-2 text-wrap" href="{{ $n['url'] }}">
+                  <i class="bi {{ $n['icon'] }} mt-1"></i>
+                  <span class="small">{{ $n['text'] }}<br><span class="text-muted">{{ \Carbon\Carbon::createFromTimestamp($n['time'])->diffForHumans() }}</span></span>
+                </a>
+              </li>
+            @empty
+              <li class="px-3 py-3 small text-muted">No new notifications</li>
+            @endforelse
+          </ul>
+        </div>
         <div class="dropdown">
           <button class="btn btn-light d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false">
             <img class="sir-avatar" src="{{ asset('admin-assets/images/faces/avatar1.png') }}" alt="">
@@ -156,7 +227,9 @@
   <script src="{{ asset('vendor/sweetalert/sweetalert.min.js') }}"></script>
   <script src="{{ asset('vendor/datatables/datatables.bundle.min.js') }}"></script>
   <script src="{{ asset('vendor/daterangepicker/daterangepicker.bundle.min.js') }}"></script>
+  <script src="{{ asset('vendor/select2/select2.min.js') }}"></script>
   <script src="{{ asset('js/sir-datatable.js') }}"></script>
+  <script src="{{ asset('js/sir-select2.js') }}"></script>
   <script>
     $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } });
   </script>

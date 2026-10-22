@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GlobalVeterinarian;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
@@ -64,50 +64,74 @@ class AuthController extends Controller
         return view('auth.sign_up');
     }
 
-    /** Looks a veterinarian up by National ID in the national vets registry. */
+    /** Looks a veterinarian up by National ID in the national register (global_veterinarians). */
     public function lookupVet(Request $request): JsonResponse
     {
-        $nid = (string) $request->input('national_id');
+        $nid = preg_replace('/\s+/', '', (string) $request->input('national_id'));
 
-        try {
-            $rows = Http::timeout(8)->get(config('services.vets.url'))->json() ?? [];
-        } catch (\Throwable) {
-            $rows = [];
+        if (! preg_match('/^\d{16}$/', $nid)) {
+            return response()->json(['found' => false, 'message' => 'The National ID must be exactly 16 digits.']);
         }
 
-        $match = array_values(array_filter($rows, fn ($row) => ($row['National_id'] ?? null) === $nid));
+        $vet = GlobalVeterinarian::where('national_id', $nid)->first();
 
-        return response()->json($match);
+        if (! $vet) {
+            return response()->json(['found' => false, 'message' => 'This National ID is not in the national veterinarians register, so you cannot sign up.']);
+        }
+        if (! $vet->is_active) {
+            return response()->json(['found' => false, 'message' => 'This veterinarian is not active in the register. Contact the administrator.']);
+        }
+        if (User::where('rcvd_id', $vet->rcvd_id)->exists()) {
+            return response()->json(['found' => false, 'message' => 'An account already exists for this veterinarian. Please log in.']);
+        }
+
+        return response()->json([
+            'found' => true,
+            'names' => $vet->names,
+            'rcvd_id' => $vet->rcvd_id,
+            'district' => $vet->district,
+            'sector' => $vet->sector,
+        ]);
     }
 
     public function signUp(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'rcvd' => ['required'],
-            'names' => ['required'],
-            'email' => ['required', 'email'],
+            'nid' => ['required', 'regex:/^\d{16}$/'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['required', 'string', 'max:20', 'unique:users,phone'],
             'username' => ['nullable', 'string', 'max:255', 'unique:users,username'],
-            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone'],
             'pwd' => ['required', Password::min(8)],
             'repwd' => ['required', 'same:pwd'],
+            'confirm' => ['accepted'],
         ], [
-            'rcvd.required' => 'RCVD ID, Name, and Email must not be empty!',
-            'names.required' => 'RCVD ID, Name, and Email must not be empty!',
-            'email.required' => 'RCVD ID, Name, and Email must not be empty!',
+            'nid.required' => 'Enter your National ID.',
+            'nid.regex' => 'The National ID must be exactly 16 digits.',
+            'email.required' => 'Enter your email address.',
+            'phone.required' => 'Enter your phone number.',
+            'phone.unique' => 'This phone number is already used by another account.',
             'repwd.same' => 'Provided Passwords do not match!',
+            'confirm.accepted' => 'Confirm that you are the veterinarian shown above.',
         ]);
 
-        if (User::where('rcvd_id', $data['rcvd'])->exists()) {
-            return back()->withInput($request->except('pwd', 'repwd'))
-                ->with('swal', ['title' => 'Error Occurred!', 'text' => 'User already exists with the same RCVD ID!', 'icon' => 'warning']);
+        // The register is the only source of identity: name and RCVD ID are never taken from the form.
+        $vet = GlobalVeterinarian::where('national_id', $data['nid'])->first();
+        $reason = match (true) {
+            ! $vet => 'This National ID is not in the national veterinarians register, so you cannot sign up.',
+            ! $vet->is_active => 'This veterinarian is not active in the register. Contact the administrator.',
+            User::where('rcvd_id', $vet->rcvd_id)->exists() => 'An account already exists for this veterinarian. Please log in.',
+            default => null,
+        };
+        if ($reason) {
+            return back()->withInput($request->except('pwd', 'repwd'))->with('swal', ['title' => 'Cannot sign up', 'text' => $reason, 'icon' => 'warning']);
         }
 
         $user = User::create([
-            'rcvd_id' => $data['rcvd'],
-            'name' => $data['names'],
+            'rcvd_id' => $vet->rcvd_id,
+            'name' => $vet->names,
             'email' => $data['email'],
             'username' => $data['username'] ?? null,
-            'phone' => $data['phone'] ?? null,
+            'phone' => $data['phone'],
             'password' => $data['pwd'],
             'role_id' => \App\Models\Role::where('name', \App\Support\PermissionCatalog::DEFAULT_ROLE)->value('id'),
         ]);

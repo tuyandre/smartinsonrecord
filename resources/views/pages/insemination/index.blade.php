@@ -21,60 +21,29 @@
   .obs-item .form-check-label { width: 100%; cursor: pointer; }
   .report-section-title { background: var(--bs-light); border: 1px solid var(--bs-border-color); border-radius: .375rem; padding: .4rem .75rem; font-weight: 600; margin-bottom: .5rem; }
   @media print {
-    body * { visibility: hidden; }
-    #reportModal, #reportModal * { visibility: visible; }
-    #reportModal { position: absolute; left: 0; top: 0; width: 100%; overflow: visible !important; }
-    #reportModal .modal-dialog { margin: 0; max-width: 100%; }
-    #reportModal .modal-content { border: 0; }
+    @page { size: A4 portrait; margin: 12mm; }
+    html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+    .sir-sidebar, .sir-topbar, .sir-footer, .modal-backdrop { display: none !important; }
+    .sir-main { margin: 0 !important; min-height: 0 !important; }
+    main.sir-content { padding: 0 !important; }
+    main.sir-content > *:not(#reportModal) { display: none !important; }
+    #reportModal { position: static !important; display: block !important; opacity: 1 !important; overflow: visible !important; }
+    #reportModal .modal-dialog { margin: 0 !important; max-width: 100% !important; max-height: none !important; transform: none !important; }
+    #reportModal .modal-content { border: 0 !important; box-shadow: none !important; max-height: none !important; overflow: visible !important; }
+    #reportModal .modal-body { overflow: visible !important; padding: 0 !important; font-size: 10.5pt; }
     #reportModal .no-print { display: none !important; }
+    #reportModal h2 { font-size: 15pt; margin: .2rem 0; }
+    #reportModal hr { margin: .4rem 0; }
+    #reportModal .report-section-title { padding: .2rem .5rem; margin-bottom: .25rem; }
+    #reportModal .list-group { margin-bottom: .5rem !important; }
+    #reportModal .list-group-item { padding: .2rem .6rem; }
+    #reportModal p { margin-bottom: .35rem !important; }
+    #reportModal .modal-body > * { break-inside: avoid; }
   }
 </style>
 @endpush
 
 @section('content')
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">
-    <div class="stat-card">
-      <div class="icon"><i class="bi bi-gender-female"></i></div>
-      <div>
-        <div class="value">{{ $totalInseminated }}</div>
-        <div class="label">Inseminated Cows</div>
-        <div class="hint">Entire Number</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-xl-3">
-    <div class="stat-card">
-      <div class="icon green"><i class="bi bi-person-badge"></i></div>
-      <div>
-        <div class="value">{{ $totalVets }}</div>
-        <div class="label">Veternarians</div>
-        <div class="hint">+1(New)</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-xl-3">
-    <div class="stat-card">
-      <div class="icon amber"><i class="bi bi-droplet"></i></div>
-      <div>
-        <div class="value">{{ $bullCount }}</div>
-        <div class="label">Semens</div>
-        <div class="hint text-truncate">From {{ implode(', ', $bullNames) }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-xl-3">
-    <div class="stat-card">
-      <div class="icon violet"><i class="bi bi-gender-male"></i></div>
-      <div>
-        <div class="value">{{ $bullCount }}</div>
-        <div class="label">Bulls</div>
-        <div class="hint text-truncate">Includes {{ implode(', ', $bullNames) }}</div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <form method="POST" action="{{ route('insemination.store') }}">
   @csrf
   <div class="row g-3">
@@ -85,8 +54,12 @@
           <p class="text-muted small mb-3">Provide below information related to the cow or Heifer insemination</p>
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label for="eartag" class="form-label">EarTag Number</label>
-              <input type="number" class="form-control @error('eartag') is-invalid @enderror" name="eartag" id="eartag" value="{{ old('eartag') }}" placeholder="EarTag Number/Iherena" required />
+              <label for="eartag" class="form-label">Cow (search registered cows)</label>
+              <select class="form-select @error('eartag') is-invalid @enderror" name="eartag" id="eartag" data-no-select2 data-url="{{ route('insemination.cows') }}" required>
+                @if ($selectedCow)
+                  <option value="{{ $selectedCow->Eartagno }}" selected>{{ $selectedCow->Eartagno }} · {{ $selectedCow->Name }}</option>
+                @endif
+              </select>
               @error('eartag') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-md-6" id="pre_calv_wrap">
@@ -117,21 +90,23 @@
               </select>
               @error('mating') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
+            <div class="col-12"><div class="alert alert-danger d-none mb-0" id="relationAlert" role="alert"></div></div>
             <div class="col-12 col-md-6">
-              <label for="semen" class="form-label">Bull used</label>
-              <select class="form-select @error('bull_used') is-invalid @enderror" name="bull_used" id="semen">
+              <label for="semen" class="form-label">Bull used (registered bulls)</label>
+              <select class="form-select @error('bull_used') is-invalid @enderror" name="bull_used" id="semen" required>
                 <option value="">------Select Bull----------</option>
-                @foreach ($bulls as $bull)
-                  <option value="{{ $bull['Eartag'] ?? '' }}">{{ ($bull['Eartag'] ?? '').' ('.($bull['Name'] ?? '').')' }}</option>
+                @foreach ($registeredBulls as $bull)
+                  <option value="{{ $bull->Eartagno }}" @selected(old('bull_used') === (string) $bull->Eartagno)>{{ $bull->Eartagno }} ({{ $bull->Name }})</option>
                 @endforeach
               </select>
               @error('bull_used') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-12 col-md-6">
-              <label for="available_semens" class="form-label">Semen Info</label>
-              <select class="form-select @error('semen') is-invalid @enderror" name="semen" id="available_semens" required>
-                <option value="">------Available Semen----------</option>
+              <label for="available_semens" class="form-label">Semen code <span class="text-muted small">(of the selected bull)</span></label>
+              <select class="form-select @error('semen') is-invalid @enderror" name="semen" id="available_semens" data-no-select2 required disabled>
+                <option value="">Select a bull first</option>
               </select>
+              <div class="form-text text-danger d-none" id="noSemenNote">No semen is registered for this bull. Add it under Register Semen.</div>
               @error('semen') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
           </div>
@@ -155,7 +130,7 @@
           @error('obsr') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
 
           <div class="d-grid d-sm-flex justify-content-sm-end mt-4">
-            <button type="submit" class="btn btn-primary btn-lg px-4"><i class="bi bi-check2-circle me-1"></i>Save Information</button>
+            <button type="submit" id="saveBtn" class="btn btn-primary btn-lg px-4"><i class="bi bi-check2-circle me-1"></i>Save Information</button>
           </div>
         </div>
       </div>
@@ -225,7 +200,7 @@
         </div>
         <div class="modal-footer no-print">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" onclick="window.print();"><i class="bi bi-printer me-1"></i>Print Report</button>
+          <button type="button" class="btn btn-primary" id="printReport"><i class="bi bi-printer me-1"></i>Print Report</button>
         </div>
       </div>
     </div>
@@ -292,7 +267,8 @@
 @push('scripts')
 <script>
   (function () {
-    var bulls = @json($bulls);
+    var semenByBull = @json($semenByBull);
+    var oldSemen = @json(old('semen'));
 
     function checkMatingTime() {
       var hide = ['2', '3'].indexOf($('#mating').val()) !== -1;
@@ -301,22 +277,78 @@
     $('#mating').on('change', checkMatingTime);
     checkMatingTime();
 
-    $('#semen').on('change', function () {
-      var eartag = $(this).val();
-      var $semens = $('#available_semens');
-      $semens.empty().append('<option value="">------Available Semen----------</option>');
-      var bull = bulls.find(function (b) { return String(b.Eartag) === String(eartag); });
-      if (!bull) { return; }
-      for (var i = 1; i <= 5; i++) {
-        var code = bull['Semen_code_' + i] || bull['semen_code_' + i];
-        if (code) {
-          $semens.append($('<option></option>').val(code).text('Semen Code ' + code));
-        }
+    // Cow: search select over the registered cows.
+    $('#eartag').select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      placeholder: 'Search by ear tag, name or owner',
+      allowClear: true,
+      ajax: {
+        url: $('#eartag').data('url'),
+        dataType: 'json',
+        delay: 250,
+        data: function (params) { return { q: params.term || '' }; },
+        processResults: function (data) { return data; }
       }
     });
 
+    // Semen: only the batches registered for the chosen bull.
+    $('#available_semens').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Select a bull first' });
+
+    var related = false;
+    var noSemen = false;
+    function updateSave() { $('#saveBtn').prop('disabled', related || noSemen); }
+
+    function loadSemen() {
+      var bull = String($('#semen').val() || '');
+      var batches = semenByBull[bull] || [];
+      var $semens = $('#available_semens');
+      var keep = $semens.val() || oldSemen;
+      oldSemen = null;
+
+      $semens.empty().append('<option value=""></option>');
+      batches.forEach(function (b) { $semens.append($('<option></option>').val(b.code).text(b.label)); });
+
+      $semens.prop('disabled', !bull || !batches.length);
+      $semens.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: !bull ? 'Select a bull first' : (batches.length ? 'Select semen code' : 'No semen for this bull') });
+      $semens.val(batches.some(function (b) { return b.code === keep; }) ? keep : (batches.length === 1 ? batches[0].code : '')).trigger('change');
+
+      noSemen = !!bull && !batches.length;
+      $('#noSemenNote').toggleClass('d-none', !noSemen);
+      updateSave();
+    }
+
+    // Block the pairing when the cow and the bull are related.
+    function checkRelation() {
+      var cow = $('#eartag').val(), bull = $('#semen').val();
+      $('#relationAlert').addClass('d-none');
+      related = false;
+      updateSave();
+      if (!cow || !bull) { return; }
+      $.getJSON(@json(route('insemination.relation')), { cow: cow, bull: bull }, function (r) {
+        if (r.related) {
+          $('#relationAlert').html('<i class="bi bi-exclamation-octagon me-1"></i><strong>Insemination not allowed.</strong> ' + $('<div>').text(r.message).html()).removeClass('d-none');
+          related = true;
+          updateSave();
+        }
+      });
+    }
+
+    $('#semen').on('change', function () { loadSemen(); checkRelation(); });
+    $('#eartag').on('change', checkRelation);
+    loadSemen();
+    checkRelation();
+
     @if ($report)
-      new bootstrap.Modal(document.getElementById('reportModal')).show();
+      var reportModal = document.getElementById('reportModal');
+      var listUrl = @json(auth()->user()->can('inseminations.view') ? route('records.inseminations') : route('insemination.index'));
+      var leaving = false;
+      function leave() { if (!leaving) { leaving = true; window.location.href = listUrl; } }
+
+      $('#printReport').on('click', function () { window.print(); });
+      window.addEventListener('afterprint', leave);          // printed or cancelled: report is done
+      reportModal.addEventListener('hidden.bs.modal', leave); // closed without printing
+      new bootstrap.Modal(reportModal).show();
     @endif
     @if ($searchResults !== null && $searchResults->isNotEmpty())
       new bootstrap.Modal(document.getElementById('searchModal')).show();

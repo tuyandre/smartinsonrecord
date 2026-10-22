@@ -31,16 +31,16 @@
 
   <div class="card">
     <div class="card-body">
-      <table class="table table-hover align-middle sir-table" data-title="Inseminations" data-order='[[0,"asc"]]' data-page-length="15">
+      <table class="table table-hover align-middle sir-table sir-actions-left" data-title="Inseminations" data-order='[[1,"asc"]]' data-page-length="15">
         <thead>
           <tr>
+            <th data-orderable="false" data-export="false" data-priority="1">Actions</th>
             <th data-filter="text" data-priority="1">Cow</th>
             <th data-filter="text" data-priority="3">Owner</th>
             <th data-priority="6">Prev. calving</th>
             <th data-filter="date" data-priority="2">Insemination Date</th>
             <th data-filter="select" data-priority="4">Bull</th>
             <th data-filter="select" data-priority="5">Veterinary</th>
-            <th data-orderable="false" data-export="false" data-priority="1">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -73,17 +73,18 @@
               }
             @endphp
             <tr>
+              <td class="text-nowrap"><x-row-actions><li><button type="button" class="dropdown-item btn-view-insemination" data-detail="{{ json_encode($detail) }}">
+                  <i class="bi bi-eye me-1"></i>View
+                </button></li>
+                @can('inseminations.view')
+                  <li><a class="dropdown-item" href="{{ route('print.insemination', $r->Eartagno) }}" target="_blank" rel="noopener"><i class="bi bi-printer me-1"></i>Print</a></li>
+                @endcan</x-row-actions></td>
               <td><span class="fw-semibold">{{ $r->Eartagno }}</span> <span>{{ $r->cow_name ?? '' }}</span></td>
               <td>{{ $val($r->owner) }}</td>
               <td class="text-nowrap">{{ $iso($r->Previous_Calving_Date) }}</td>
               <td class="text-nowrap">{{ $iso($r->{$r1['date']}) }}</td>
               <td>{{ $val($r->{$r1['bull']}) }}</td>
               <td>{{ $val($r->{$r1['vet']}) }}</td>
-              <td class="text-nowrap">
-                <button type="button" class="btn btn-sm btn-outline-primary btn-view-insemination" data-detail="{{ json_encode($detail) }}">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
-              </td>
             </tr>
           @endforeach
         </tbody>

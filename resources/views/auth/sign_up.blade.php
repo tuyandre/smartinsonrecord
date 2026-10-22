@@ -15,6 +15,8 @@
     .auth-logo { max-width: 150px; width: 100%; height: auto; }
     #strengthTrack { height: 6px; border-radius: 3px; background: var(--sir-border); overflow: hidden; margin-top: .5rem; }
     #strengthIndicator { height: 100%; width: 0; border-radius: 3px; transition: width .2s, background-color .2s; }
+    #vetFields:disabled { opacity: .55; }
+    #vetFields { border: 0; padding: 0; margin: 0; min-width: 0; }
   </style>
 </head>
 <body>
@@ -26,86 +28,104 @@
     <div class="card auth-card">
       <div class="card-body p-4 p-md-5">
         <h1 class="h4 fw-bold text-center mb-1">Create your account</h1>
-        <p class="text-center text-muted mb-4">Enter your National ID and we fill in your veterinary details.</p>
+        <p class="text-center text-muted mb-4">Enter your National ID. Your details are read from the national veterinarians register; you add the rest.</p>
 
-        <form method="POST" action="{{ route('sign-up') }}">
+        <form method="POST" action="{{ route('sign-up') }}" id="signUpForm" novalidate>
           @csrf
           <div class="row g-3">
-            <div class="col-12 col-md-6">
+            <div class="col-12">
               <div class="form-floating">
-                <input type="text" class="form-control" id="national_id" name="nid" value="{{ old('nid') }}" placeholder="National ID" required title="Only Rwanda National Id Allowed">
+                <input type="text" inputmode="numeric" maxlength="16" pattern="[0-9]{16}" class="form-control @error('nid') is-invalid @enderror" id="national_id" name="nid" value="{{ old('nid') }}" placeholder="National ID" required autofocus autocomplete="off">
                 <label for="national_id">National ID</label>
               </div>
+              <div id="lookupMessage" class="small mt-1"></div>
               @error('nid') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
-            <div class="col-12 col-md-6">
-              <div class="form-floating">
-                <input type="text" class="form-control" id="username" name="names" value="{{ old('names') }}" placeholder="Names" readonly>
-                <label for="username">Names</label>
-              </div>
-              @error('names') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="form-floating">
-                <input type="text" class="form-control" id="rcvd_id" name="rcvd" value="{{ old('rcvd') }}" placeholder="RCVD Id" readonly>
-                <label for="rcvd_id">RCVD ID</label>
-              </div>
-              @error('rcvd') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="form-floating">
-                <input type="email" class="form-control" id="email" name="email" value="{{ old('email') }}" placeholder="Email" readonly>
-                <label for="email">Email</label>
-              </div>
-              @error('email') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="form-floating">
-                <input type="text" class="form-control" id="username_login" name="username" value="{{ old('username') }}" placeholder="Username">
-                <label for="username_login">Username (optional)</label>
-              </div>
-              @error('username') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
-            <div class="col-12 col-md-6">
-              <div class="form-floating">
-                <input type="tel" class="form-control" id="phone" name="phone" value="{{ old('phone') }}" placeholder="Phone">
-                <label for="phone">Phone (optional)</label>
-              </div>
-              @error('phone') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
 
-            <div class="col-12">
-              <div class="form-floating">
-                <input type="password" class="form-control" id="password" name="pwd" placeholder="Choose password" required oninput="checkPasswordStrength()">
-                <label for="password">Password</label>
+            <fieldset id="vetFields" class="row g-3 mx-0 px-0" disabled>
+              <div class="col-12 col-md-6">
+                <div class="form-floating">
+                  <input type="text" class="form-control" id="names" placeholder="Names" readonly tabindex="-1">
+                  <label for="names">Names (from the register)</label>
+                </div>
               </div>
-              <div id="strengthTrack"><div id="strengthIndicator"></div></div>
-              <small id="strengthMessage" class="text-muted"></small>
-              <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" id="togglePassword">
-                <label class="form-check-label" for="togglePassword">Show Password</label>
+              <div class="col-12 col-md-6">
+                <div class="form-floating">
+                  <input type="text" class="form-control" id="rcvd_id" placeholder="RCVD ID" readonly tabindex="-1">
+                  <label for="rcvd_id">RCVD ID (from the register)</label>
+                </div>
               </div>
-              @error('pwd') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
+              <div class="col-12 col-md-6">
+                <div class="form-floating">
+                  <input type="text" class="form-control" id="district" placeholder="District" readonly tabindex="-1">
+                  <label for="district">District</label>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="form-floating">
+                  <input type="text" class="form-control" id="sector" placeholder="Sector" readonly tabindex="-1">
+                  <label for="sector">Sector</label>
+                </div>
+              </div>
 
-            <div class="col-12">
-              <div class="form-floating">
-                <input type="password" class="form-control" id="retype-password" name="repwd" placeholder="Retype password" required>
-                <label for="retype-password">Retype Password</label>
-              </div>
-              @error('repwd') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-            </div>
+              <div class="col-12"><hr class="my-1"><div class="small text-muted">Not in the register: please fill these in</div></div>
 
-            <div class="col-12">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="" id="form2Example33">
-                <label class="form-check-label" for="form2Example33">Am Veterinary</label>
+              <div class="col-12 col-md-6">
+                <div class="form-floating">
+                  <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" placeholder="Email" required>
+                  <label for="email">Email</label>
+                </div>
+                @error('email') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
               </div>
-            </div>
+              <div class="col-12 col-md-6">
+                <div class="form-floating">
+                  <input type="tel" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" placeholder="Phone" required>
+                  <label for="phone">Phone</label>
+                </div>
+                @error('phone') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+              </div>
+              <div class="col-12">
+                <div class="form-floating">
+                  <input type="text" class="form-control @error('username') is-invalid @enderror" id="username_login" name="username" value="{{ old('username') }}" placeholder="Username">
+                  <label for="username_login">Username (optional)</label>
+                </div>
+                @error('username') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+              </div>
 
-            <div class="col-12 d-grid">
-              <input type="submit" class="btn btn-primary btn-lg" name="sign" value="Sign up">
-            </div>
+              <div class="col-12">
+                <div class="form-floating">
+                  <input type="password" class="form-control @error('pwd') is-invalid @enderror" id="password" name="pwd" placeholder="Choose password" required oninput="checkPasswordStrength()">
+                  <label for="password">Password</label>
+                </div>
+                <div id="strengthTrack"><div id="strengthIndicator"></div></div>
+                <small id="strengthMessage" class="text-muted"></small>
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" id="togglePassword">
+                  <label class="form-check-label" for="togglePassword">Show Password</label>
+                </div>
+                @error('pwd') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+              </div>
+
+              <div class="col-12">
+                <div class="form-floating">
+                  <input type="password" class="form-control @error('repwd') is-invalid @enderror" id="retype-password" name="repwd" placeholder="Retype password" required>
+                  <label for="retype-password">Retype Password</label>
+                </div>
+                @error('repwd') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+              </div>
+
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="1" id="confirm" name="confirm" @checked(old('confirm'))>
+                  <label class="form-check-label" for="confirm">I confirm that I am the veterinarian shown above</label>
+                </div>
+                @error('confirm') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+              </div>
+
+              <div class="col-12 d-grid">
+                <button type="submit" class="btn btn-primary btn-lg" id="signUpBtn" disabled>Sign up</button>
+              </div>
+            </fieldset>
           </div>
         </form>
 
@@ -145,31 +165,61 @@
     }
 
     $(function () {
-      function clearLookup(border) {
-        $('#username').val(''); $('#rcvd_id').val(''); $('#email').val('');
-        $('#national_id').css('border-color', border);
+      var timer = null;
+      var request = 0;
+
+      // Everything below the National ID stays locked until the register confirms the veterinarian.
+      function setFound(found, vet, message) {
+        $('#vetFields').prop('disabled', !found);
+        $('#signUpBtn').prop('disabled', !found);
+        $('#names').val(found ? vet.names : '');
+        $('#rcvd_id').val(found ? vet.rcvd_id : '');
+        $('#district').val(found ? (vet.district || '') : '');
+        $('#sector').val(found ? (vet.sector || '') : '');
+        $('#national_id').toggleClass('is-valid', found).toggleClass('is-invalid', !found && !!message);
+        $('#lookupMessage')
+          .attr('class', 'small mt-1 ' + (found ? 'text-success' : 'text-danger'))
+          .html(message ? $('<span>').text(message).prop('outerHTML') : '');
       }
-      $('#national_id').on('keyup', function () {
-        var national_id = $('#national_id').val();
-        if (national_id.length === 0) { clearLookup(''); return; }
+
+      function lookup() {
+        var nid = String($('#national_id').val()).trim();
+        var current = ++request;
+        if (nid.length === 0) { setFound(false, null, ''); return; }
+        if (!/^\d+$/.test(nid)) { setFound(false, null, 'The National ID may contain digits only.'); return; }
+        if (nid.length < 16) {
+          // Not a full ID yet: keep the form locked and show how many digits are still missing.
+          setFound(false, null, '');
+          $('#lookupMessage').attr('class', 'small mt-1 text-muted').text(nid.length + ' of 16 digits entered');
+          return;
+        }
+
         $.ajax({
           url: @json(route('sign-up.lookup')),
           method: 'POST',
-          data: { national_id: national_id, _token: @json(csrf_token()) },
-          dataType: 'json',
-          success: function (response) {
-            if (response.length > 0) {
-              $('#username').val(response[0].Vet_Names);
-              $('#rcvd_id').val(response[0].Rcvd_id);
-              $('#email').val(response[0].email ? response[0].email : '');
-              $('#national_id').css('border-color', '#14c671');
-            } else {
-              clearLookup('#dc3545');
-            }
-          },
-          error: function () { clearLookup('#dc3545'); }
+          data: { national_id: nid, _token: @json(csrf_token()) },
+          dataType: 'json'
+        }).done(function (r) {
+          if (current !== request) { return; }          // an older answer: ignore
+          if (r.found) { setFound(true, r, 'Veterinarian found: ' + r.names + '. Fill in the remaining fields.'); }
+          else { setFound(false, null, r.message); }
+        }).fail(function (xhr) {
+          if (current !== request) { return; }
+          setFound(false, null, xhr.status === 429 ? 'Too many attempts. Please wait a minute and try again.' : 'Could not check the register. Please try again.');
         });
+      }
+
+      $('#national_id').on('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(lookup, 350);
       });
+
+      // Nothing is sent unless the register has confirmed the veterinarian.
+      $('#signUpForm').on('submit', function (e) {
+        if ($('#signUpBtn').prop('disabled')) { e.preventDefault(); }
+      });
+
+      if ($('#national_id').val()) { lookup(); }
     });
   </script>
   @include('partials.swal')
