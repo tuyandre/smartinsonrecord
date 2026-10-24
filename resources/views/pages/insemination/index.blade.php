@@ -62,6 +62,15 @@
               </select>
               @error('eartag') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
+            <div class="col-12 col-md-6">
+              <label for="cow_type" class="form-label">Type</label>
+              <select class="form-select @error('cow_type') is-invalid @enderror" name="cow_type" id="cow_type" data-no-select2 required>
+                <option value="">------Select Type----------</option>
+                <option value="heifer" @selected(old('cow_type') === 'heifer')>Heifer</option>
+                <option value="cow" @selected(old('cow_type') === 'cow')>Cow</option>
+              </select>
+              @error('cow_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
             <div class="col-12 col-md-6" id="pre_calv_wrap">
               <label for="pre_calv" class="form-label" id="pre_calv_label">Date of previous calving</label>
               <input type="date" class="form-control @error('pre_calv') is-invalid @enderror" name="pre_calv" id="pre_calv" value="{{ old('pre_calv') }}" placeholder="Previous Calv/Igihe iherukira kubyariraho" />
@@ -271,10 +280,11 @@
     var oldSemen = @json(old('semen'));
 
     function checkMatingTime() {
-      var hide = ['2', '3'].indexOf($('#mating').val()) !== -1;
+      var hide = $('#cow_type').val() !== 'cow';
       $('#pre_calv_wrap').toggleClass('d-none', hide);
+      $('#pre_calv').prop('required', !hide);
     }
-    $('#mating').on('change', checkMatingTime);
+    $('#cow_type').on('change', checkMatingTime);
     checkMatingTime();
 
     // Cow: search select over the registered cows.

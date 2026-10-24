@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class InseminationController extends Controller
@@ -72,7 +73,11 @@ class InseminationController extends Controller
     {
         $data = $request->validate([
             'eartag' => ['required', 'regex:/^[A-Za-z0-9]+$/', 'max:30', 'exists:cows,Eartagno'],
-            'pre_calv' => ['nullable', 'date'],
+            'cow_type' => ['required', 'in:heifer,cow'],
+            'pre_calv' => [
+                Rule::requiredIf(fn () => $request->input('cow_type') === 'cow'),
+                'nullable', 'date',
+            ],
             'heat_obs' => ['required', 'date'],
             'hours_heat' => ['required', 'string', 'max:10'],
             'bull_used' => ['required', 'regex:/^[A-Za-z0-9]+$/', 'exists:bulls,Eartagno'],
@@ -113,7 +118,7 @@ class InseminationController extends Controller
             DB::table('inseminated_cows')->insert([
                 'Eartagno' => $eartag,
                 'Mating_Time_1' => 1,
-                'Previous_Calving_Date' => (string) ($data['pre_calv'] ?? ''),
+                'Previous_Calving_Date' => $data['cow_type'] === 'cow' ? (string) ($data['pre_calv'] ?? '') : '',
                 'Heat_Observation_Date_1' => $data['heat_obs'],
                 'Hours_Heat_Observation_1' => $data['hours_heat'],
                 'Insemination_Date_1' => $insemDate,
