@@ -203,7 +203,7 @@
             <li class="list-group-item"><strong>Veterinary RCVD ID:</strong>&nbsp;{{ $report['vet_rcvd'] }}</li>
             <li class="list-group-item"><strong>Veterinary Email:</strong>&nbsp;{{ $report['vet_email'] }}</li>
           </ul>
-          <p class="mb-1">Done at byumba_hospital</p>
+          <p class="mb-1">Done at {{ $report['location'] ?: '-' }}</p>
           <p class="mb-3">On {{ date('Y-m-d') }}</p>
           <p class="mb-4">_________________________</p>
         </div>

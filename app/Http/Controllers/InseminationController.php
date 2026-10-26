@@ -172,6 +172,11 @@ class InseminationController extends Controller
             ]);
         }
 
+        $cow = DB::table('cows')->where('Eartagno', $eartag)->first(['Village', 'Cell', 'Sector', 'District']);
+        $location = $cow
+            ? implode(', ', array_filter([$cow->Village, $cow->Cell, $cow->Sector, $cow->District], fn ($v) => trim((string) $v) !== ''))
+            : '';
+
         return redirect()->route('insemination.index')->with([
             'swal' => [
                 'title' => 'Success!',
@@ -189,6 +194,7 @@ class InseminationController extends Controller
                 'vet_name' => $vetName,
                 'vet_rcvd' => $vetRcvd,
                 'vet_email' => $vetEmail,
+                'location' => $location,
             ],
         ]);
     }
